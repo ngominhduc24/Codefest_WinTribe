@@ -32,7 +32,7 @@ public class Player1 {
 
     public static void main(String[] args) {
         Hero randomPlayer = new Hero(PLAYER_ID, GAME_ID);
-
+        // test git
         // player move
         Emitter.Listener onTickTackListener = objects -> {
             GameInfo gameInfo = GameUtil.getGameInfo(objects);
