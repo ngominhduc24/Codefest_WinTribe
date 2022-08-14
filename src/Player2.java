@@ -17,19 +17,6 @@ public class Player2 {
     final static String PLAYER_ID = "player2-xxx";
     final static String GAME_ID = "0af82a5d-47e2-49e2-9056-6797866f212f";
 
-    public static String getRandomPath(int length) {
-        Random rand = new Random();
-
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < length; i++) {
-            int random_integer = rand.nextInt(5);
-            sb.append("1234b".charAt(random_integer));
-        }
-
-        return sb.toString();
-    }
-
-
     public static void main(String[] args) {
         Hero randomPlayer = new Hero(PLAYER_ID, GAME_ID);
 
