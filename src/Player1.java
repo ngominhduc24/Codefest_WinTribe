@@ -15,31 +15,78 @@ public class Player1 {
     final static String SERVER_URL = "https://codefest.jsclub.me/";
     final static String PLAYER1_ID = "player1-xxx";
     final static String PLAYER2_ID = "player2-xxx";
-    final static String GAME_ID = "678da3e4-4ea6-4574-808b-606b7f4610fa";
+    final static String GAME_ID = "116ab982-9237-4f41-9e53-90e1f6c9703e";
     final static Hero Player1 = new Hero(PLAYER1_ID, GAME_ID);
-
+    private static MapInfo map;
+    private static List<Position> restrictPosition;
 
 
 
     public static void main(String[] args) {
         Emitter.Listener onTickTackListener = objects -> {
             GameInfo gameInfo = GameUtil.getGameInfo(objects);
-            MapInfo map = gameInfo.getMapInfo();
+            map = gameInfo.getMapInfo();
             map.updateMapInfo();
-            String path = getPath(map);
+            restrictPosition = getRestrictPosition(); // lay
+            String path = getPath();
             Player1.move(path);
         };
         Player1.setOnTickTackListener(onTickTackListener);
         Player1.connectToServer(SERVER_URL);
     }
 
-    public static List<Position> getRestrictPosition(MapInfo map) {
+    public static String getPath() {
+        String path = "";
+        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition; // lay vi tri hien tai 
+
+        Position target = null;
+        double min = -1;
+        if(checkBomb()) {
+            path = dodgeBomb();
+        }
+//        else
+//        {
+//            target = getTargetSpoils();
+//            if(target != null) {
+//                path = sortPath(map.getCurrentPosition(Player1),target);
+//                min = countOfWalk(path);
+//            }
+//            target = getTargetHumans();
+//            if(target != null )
+//            {
+//                if( (countOfWalk(playerPosition, target) < min )|| min == -1) {
+//                    path = sortPath(map.getCurrentPosition(Player1),target);
+//                }
+//            }
+//
+//        }
+//        if(target != null)System.out.println(target.getCol() + " " + target.getRow());
+        return path;
+    }
+
+
+    // *****************************   new function ************************************
+
+    public static double countOfWalk(Position start , Position des) {
+        return sortPath(start , des).length();
+    }
+    public static double countOfWalk(String path) {
+        return path.length();
+    }
+    public static String sortPath(Position start , Position des){
+        return AStarSearch.aStarSearch(map.mapMatrix,restrictPosition, start,des);
+    }
+
+    //******************************************* take map info *******************************
+    
+    // nhung diem can tranh
+    public static List<Position> getRestrictPosition() {
         List<Position> restrictPosition = new ArrayList<>();
         restrictPosition.addAll(map.balk);
         restrictPosition.addAll(map.walls);
         restrictPosition.addAll(map.teleportGate);
         restrictPosition.add(map.getPlayerByKey(PLAYER2_ID).currentPosition);
-        restrictPosition.addAll(getBomb(map));
+        restrictPosition.addAll(map.getBombList());
         List<Position> virus = new ArrayList<>();
         for(Viruses vr:map.getVirus()) {
             virus.add(vr.position);
@@ -48,28 +95,11 @@ public class Player1 {
         return restrictPosition;
     }
 
-    public  static Position getTargetSpoils(MapInfo map) {
-        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
-        Position target = null;
-        List<Position> restrictPosition = getRestrictPosition(map);
-        if (map.spoils.size() != 0) {
-            target = map.spoils.get(0);
-            for(int i = 1; i <  map.spoils.size(); i++)
-            {
-                if((BaseAlgorithm.distanceBetweenTwoPoints(map.spoils.get(i), playerPosition) < BaseAlgorithm.distanceBetweenTwoPoints(target, playerPosition) )
-                    || AStarSearch.aStarSearch(map.mapMatrix,restrictPosition, map.getCurrentPosition(Player1),target) == ""  )
-                    target = map.spoils.get(i);
-            }
-        }
-        if(target == null ) System.out.println("asdasdsa");
-        return target;
-    }
-
-    public static List<Position> getBomb(MapInfo map) {
+    public static List<Position> getBomb() {
         List<Position> bomb = new ArrayList<>();
-        List<Position> Bombs = new ArrayList<>();
-        Bombs.addAll(map.bombs);
-        for(Position item:Bombs) {
+//        List<Position> Bombs = new ArrayList<>();
+//        Bombs.addAll(map.bombs);
+        for(Position item:map.bombs) {
             bomb.add(item);
             for(int i = 0; i <= 4; i++) {
                 for(int step = 1; step <= 2; step++){
@@ -80,55 +110,68 @@ public class Player1 {
         return bomb;
     }
 
-    public  static Position getTargetHumans(MapInfo map) {
+    //*********************************** get target *******************************************
+    
+    public  static Position getTargetSpoils() {
+        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
+        Position target = null;
+        if (map.spoils.size() > 0) {
+            target = map.spoils.get(0);
+            for(int i = 1; i <  map.spoils.size(); i++)
+            {
+                if((countOfWalk(playerPosition, map.spoils.get(i)) < countOfWalk(playerPosition, target) )
+                    && countOfWalk(playerPosition, map.spoils.get(i)) !=  0)
+                    target = map.spoils.get(i);
+            }
+        }
+        return target;
+    }
+
+    public  static Position getTargetHumans() {
         Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
         Position target = null;
         // get default target (it is the first human are not infected)
         for (int i = 0; i < map.getHuman().size(); i++) {
-            if(!map.getHuman().get(i).infected) {
+            if(!map.getHuman().get(i).infected
+                && countOfWalk(playerPosition, map.getHuman().get(i).position) != 0) {
+                target = map.getHuman().get(i).position;
+                break;
+            }
+            if(map.getHuman().get(i).infected
+                && map.getPlayerByKey(PLAYER1_ID).pill > 1
+                && countOfWalk(playerPosition, map.getHuman().get(i).position) != 0) {
                 target = map.getHuman().get(i).position;
                 break;
             }
         }
+
         if(target == null) return null;
         // get human shortest with player (if player have pill human can be enfected)
-        if (map.getPlayerByKey(PLAYER1_ID).pill > 0) {
+        if (map.getPlayerByKey(PLAYER1_ID).pill > 1) {
 
             for (int i = 0; i < map.getHuman().size(); i++) {
-                if (map.getHuman().get(i).infected && BaseAlgorithm.distanceBetweenTwoPoints(map.getHuman().get(i).position, playerPosition) < BaseAlgorithm.distanceBetweenTwoPoints(target, playerPosition))
+                if (map.getHuman().get(i).infected
+                    && countOfWalk(playerPosition, map.getHuman().get(i).position) < countOfWalk(playerPosition, target)
+                    && countOfWalk(playerPosition, map.getHuman().get(i).position) !=  0 )
                     target = map.getHuman().get(i).position;
             }
-        } else {
+        } else  {
             for (int i = 0; i < map.getHuman().size(); i++) {
-                if (!map.getHuman().get(i).infected && BaseAlgorithm.distanceBetweenTwoPoints(map.getHuman().get(i).position, playerPosition) < BaseAlgorithm.distanceBetweenTwoPoints(target, playerPosition))
+                if (!map.getHuman().get(i).infected
+                    && countOfWalk(playerPosition, map.getHuman().get(i).position) < countOfWalk(playerPosition, target)
+                    && countOfWalk(playerPosition, map.getHuman().get(i).position) !=  0 )
                     target = map.getHuman().get(i).position;
             }
         }
-            return target;
+        return target;
     }
 
-    public static String dodgeBomb(MapInfo map) {
-        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
-        String path = "";
-        List<Position> restrictPosition = getRestrictPosition(map);
-        restrictPosition.addAll(getBomb(map));
-        Position target = map.blank.get(0);
-        double min = BaseAlgorithm.distanceBetweenTwoPoints(target, playerPosition);
-        for(int i = 1; i <  map.blank.size(); i++)
-        {
-            if(BaseAlgorithm.distanceBetweenTwoPoints(map.blank.get(i), playerPosition) < 3 && AStarSearch.aStarSearch(map.mapMatrix, restrictPosition, playerPosition, map.blank.get(i)).length() != 0) {
-            //if(BaseAlgorithm.distanceBetweenTwoPoints(map.blank.get(i), playerPosition) < min && AStarSearch.aStarSearch(map.mapMatrix, restrictPosition, playerPosition, map.blank.get(i)).length() != 0) {
-                target = map.blank.get(i);
-                min = BaseAlgorithm.distanceBetweenTwoPoints(map.blank.get(i), playerPosition);
-            }
-        }
-        path = AStarSearch.aStarSearch(map.mapMatrix, restrictPosition, playerPosition, target);
 
-        return path;
-    }
 
-    public static boolean checkBomb(MapInfo map) {
-        List<Position> bomb = getBomb(map);
+    //**************************************** dodge ************************************
+
+    public static boolean checkBomb() {
+        List<Position> bomb = map.getBombList();
         Position position = map.getPlayerByKey(PLAYER1_ID).currentPosition;
         for(Position item:bomb) {
             if(position.getRow() == item.getRow() && position.getCol() == item.getCol()) {
@@ -138,31 +181,37 @@ public class Player1 {
         return false;
     }
 
-    public static String getPath(MapInfo map) {
-        String path = "";
-        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
-        List<Position> restrictPosition = getRestrictPosition(map);
-        Position target = null;
-        double min = -1;
-        if(checkBomb(map)) {
-            path = dodgeBomb(map);
+    public static boolean checkBlank(Position p) {
+        for(Position i:map.getBombList()) {
+            if(p.getRow() == i.getRow() && p.getCol() == i.getCol()) {
+                return false;
+            }
         }
-        else
-        {
-            target = getTargetSpoils(map);
-            if(target != null) {
-                path = AStarSearch.aStarSearch(map.mapMatrix,restrictPosition, map.getCurrentPosition(Player1),target);
-                min = BaseAlgorithm.distanceBetweenTwoPoints(target, playerPosition);
-            }
-            target = getTargetHumans(map);
-            if(target != null )
-            {
-                if( (BaseAlgorithm.distanceBetweenTwoPoints(target, playerPosition) < min )|| min == -1) {
-                    path = AStarSearch.aStarSearch(map.mapMatrix,restrictPosition, map.getCurrentPosition(Player1),target);
-                }
-            }
+        return true;
+    }
 
+    public static String dodgeBomb() {
+        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
+        String path = "";
+        restrictPosition.addAll(map.getBombs());
+        Position target = null;
+        double min = Double.MAX_VALUE;
+        for(int i = 0; i <  map.blank.size(); i++)
+        {
+            if(checkBlank(map.blank.get(i)))
+            if( countOfWalk(playerPosition,map.blank.get(i)) < min && countOfWalk(playerPosition,map.blank.get(i)) != 0)
+            {
+                target = map.blank.get(i);
+                min = countOfWalk(playerPosition, map.blank.get(i));
+            }
+                System.out.println(countOfWalk(playerPosition,map.blank.get(i)));
         }
+        path = sortPath(playerPosition, target);
+
         return path;
     }
+
+    
+
+    
 }
