@@ -6,264 +6,352 @@ import jsclub.codefest.sdk.model.Hero;
 import jsclub.codefest.sdk.socket.data.*;
 import jsclub.codefest.sdk.util.GameUtil;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
+import java.lang.reflect.Array;
+import java.util.*;
 
 public class Player2 {
-
     final static String SERVER_URL = "https://codefest.jsclub.me/";
-    final static String PLAYER1_ID = "player1-xxx";
-    final static String PLAYER2_ID = "player2-xxx";
-    final static String GAME_ID = "e04cef22-dc59-4699-948b-f81def74adc5";
-    final static Hero Player1 = new Hero(PLAYER2_ID, GAME_ID);
+    final static String PLAYER_ID = "player1-xxx";
+    final static String COMPETITOR_ID = "player2-xxx";
+    final static String GAME_ID = "b973eaa9-5fd9-4f2e-aa79-4999803063e7";
     private static MapInfo map;
-    private static List<Position> restrictPosition;
-    private static Position playerPosition;
+    private static int[][] roadMatrix; // ma tran ban do
+    private static int[][] virusMatrix; // ma tran virus
+    private static int[][] humanMatrix; // ma tran nguoi
+    private static int[][] spoilsMatrix; // ma tran vat pham
+    private static int[][] bombMatrix; // ma tran bom
+    private static int[][] redMatrix;
+    private static int[][] blackMatrix;
+    private static int[][] pathMatrix;
+    private static ArrayList<Position> blackList;
+    private static Position heroPosition;
 
-
-    public static void main(String[] args) {
-        Emitter.Listener onTickTackListener = objects -> {
-            GameInfo gameInfo = GameUtil.getGameInfo(objects);
-            map = gameInfo.getMapInfo();
-            map.updateMapInfo();
-            restrictPosition = getRestrictPosition();
-            playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
-            String path = getPath();
-            Player1.move(path);
-        };
-        Player1.setOnTickTackListener(onTickTackListener);
-        Player1.connectToServer(SERVER_URL);
-    }
-
-    public static String getPath() {
-        String path = "";
-        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition; // lay vi tri hien tai
-        boolean check = true;
-        Position target = null;
-        double min = -1;
-        if(checkBomb() && map.getBombs().size() != 0) {
-            return dodgeBomb();
-        }
-        else
-        {
-            target = getTargetBalk();
-            if(target != null  ) {
-                path = sortPath(playerPosition,target);
-                min = countOfWalk(path);
-            }
-            target = getTargetSpoils();
-            if(target != null) {
-                if( (countOfWalk(playerPosition, target) < min )|| min == -1) {
-                    path = sortPath(playerPosition,target);
-                    check = false;
-                }
-            }
-            target = getTargetHumans();
-            if(target != null )
-            {
-                if( (countOfWalk(playerPosition, target) < min )|| min == -1) {
-                    path = sortPath(playerPosition,target);
-                    check = false;
-                }
-            }
-
-        }
-        if(check && path.length() == 0)   path += 'b';
-        return path;
-    }
-
-
-    // *****************************   new function ************************************
 
     public static double countOfWalk(Position start , Position des) {
         return sortPath(start , des).length();
-    }
-    public static double countOfWalk(List<Position> restrictNode, Position start , Position des) {
-        return AStarSearch.aStarSearch(map.mapMatrix,restrictNode,start , des).length();
     }
     public static double countOfWalk(String path) {
         return path.length();
     }
     public static String sortPath(Position start , Position des){
-        return AStarSearch.aStarSearch(map.mapMatrix,restrictPosition, start,des);
+        return AStarSearch.aStarSearch(map.mapMatrix,blackList, start,des);
     }
 
-    //******************************************* take map info *******************************
+    public static String getRandomPath(int length) {
+        Random rand = new Random();
 
-    // nhung diem can tranh
-    public static List<Position> getRestrictPosition() {
-        List<Position> restrictPosition = new ArrayList<>();
-        restrictPosition.addAll(map.balk);
-        restrictPosition.addAll(map.walls);
-        restrictPosition.addAll(map.teleportGate);
-        restrictPosition.add(map.getPlayerByKey(PLAYER2_ID).currentPosition);
-        restrictPosition.addAll(map.getBombs());
-        List<Position> virus = new ArrayList<>();
-        for(Viruses vr:map.getVirus()) {
-            virus.add(vr.position);
-        }
-        restrictPosition.addAll(virus);
-        return restrictPosition;
-    }
-
-    public static List<Position> getRestrictPosition4Balk() {
-        List<Position> restrictPosition = new ArrayList<>();
-//        restrictPosition.addAll(map.balk);
-        restrictPosition.addAll(map.walls);
-        restrictPosition.addAll(map.teleportGate);
-        restrictPosition.add(map.getPlayerByKey(PLAYER2_ID).currentPosition);
-        restrictPosition.addAll(map.getBombs());
-        List<Position> virus = new ArrayList<>();
-        for(Viruses vr:map.getVirus()) {
-            virus.add(vr.position);
-        }
-        restrictPosition.addAll(virus);
-        return restrictPosition;
-    }
-
-    public static List<Position> getBomb() {
-        List<Position> bomb = new ArrayList<>();
-//        List<Position> Bombs = new ArrayList<>();
-//        Bombs.addAll(map.bombs);
-        for(Position item:map.bombs) {
-            bomb.add(item);
-            for(int i = 0; i <= 4; i++) {
-                for(int step = 1; step <= 2; step++){
-                    bomb.add(item.nextPosition(i,step));
-                }
-            }
-        }
-        return bomb;
-    }
-
-    //*********************************** get target *******************************************
-
-    public  static Position getTargetSpoils() {
-        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
-        Position target = null;
-        if (map.spoils.size() > 0) {
-            target = map.spoils.get(0);
-            for(int i = 1; i <  map.spoils.size(); i++)
-            {
-                if((countOfWalk(playerPosition, map.spoils.get(i)) < countOfWalk(playerPosition, target) )
-                        && countOfWalk(playerPosition, map.spoils.get(i)) !=  0)
-                    target = map.spoils.get(i);
-            }
-        }
-        return target;
-    }
-
-    public  static Position getTargetHumans() {
-        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
-        Position target = null;
-        // get default target (it is the first human are not infected)
-        for (int i = 0; i < map.getHuman().size(); i++) {
-            if(!map.getHuman().get(i).infected
-                    && countOfWalk(playerPosition, map.getHuman().get(i).position) != 0) {
-                target = map.getHuman().get(i).position;
-                break;
-            }
-            if(map.getHuman().get(i).infected
-                    && map.getPlayerByKey(PLAYER1_ID).pill > 1
-                    && countOfWalk(playerPosition, map.getHuman().get(i).position) != 0) {
-                target = map.getHuman().get(i).position;
-                break;
-            }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            int random_integer = rand.nextInt(5);
+            sb.append("1234b".charAt(random_integer));
         }
 
-        if(target == null) return null;
-        // get human shortest with player (if player have pill human can be enfected)
-        if (map.getPlayerByKey(PLAYER1_ID).pill > 1) {
-
-            for (int i = 0; i < map.getHuman().size(); i++) {
-                if (map.getHuman().get(i).infected
-                        && countOfWalk(playerPosition, map.getHuman().get(i).position) < countOfWalk(playerPosition, target)
-                        && countOfWalk(playerPosition, map.getHuman().get(i).position) !=  0 )
-                    target = map.getHuman().get(i).position;
-            }
-        } else  {
-            for (int i = 0; i < map.getHuman().size(); i++) {
-                if (!map.getHuman().get(i).infected
-                        && countOfWalk(playerPosition, map.getHuman().get(i).position) < countOfWalk(playerPosition, target)
-                        && countOfWalk(playerPosition, map.getHuman().get(i).position) !=  0 )
-                    target = map.getHuman().get(i).position;
-            }
-        }
-        return target;
+        return sb.toString();
     }
 
-    public static Position getTargetBalk() {
-        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
-        List<Position> RestrictPosition4Balk = getRestrictPosition4Balk();
-        Position target = null;
-        if (map.balk.size() > 0) {
-            target = map.balk.get(0);
-            for(int i = 1; i <  map.balk.size(); i++)
-            {
-                if((countOfWalk(RestrictPosition4Balk, playerPosition, map.balk.get(i)) < countOfWalk(RestrictPosition4Balk, playerPosition, target) )
-                        && countOfWalk(RestrictPosition4Balk, playerPosition, map.balk.get(i)) !=  0)
-                    target = map.blank.get(i);
-            }
-        }
-        return target;
+    public static void main(String[] args) {
+        Hero randomPlayer = new Hero(PLAYER_ID, GAME_ID);
+        Emitter.Listener onTickTackListener = objects -> {
+            GameInfo gameInfo = GameUtil.getGameInfo(objects);
+            map = gameInfo.getMapInfo();
+            map.updateMapInfo();
+            updateMatrixInfo();
+            randomPlayer.move(getPath());
+        };
+        randomPlayer.setOnTickTackListener(onTickTackListener);
+        randomPlayer.connectToServer(SERVER_URL);
     }
 
-    //**************************************** check  ************************************
-
-    public static boolean checkBalk(Position position) {
-        int[][] Map = map.mapMatrix;
-        if (Map[position.getRow()][position.getCol()-1] == 2
-                || Map[position.getRow()-1][position.getCol()] == 2
-                || Map[position.getRow()][position.getCol()+1] == 2
-                || Map[position.getRow()+1][position.getCol()] == 2)
-            return true;
-
-        return false;
-    }
-
-    public static boolean checkBlank(Position p) {
-        for(Position i:map.getBombList()) {
-            if(p.getRow() == i.getRow() && p.getCol() == i.getCol()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    //**************************************** dodge ************************************
-
-    public static boolean checkBomb() {
-        List<Position> bomb = map.getBombList();
-        Position position = map.getPlayerByKey(PLAYER1_ID).currentPosition;
-        for(Position item:bomb) {
-            if(position.getRow() == item.getRow() && position.getCol() == item.getCol()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public static String dodgeBomb() {
-        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
+    public static String getPath(){
         String path = "";
-        restrictPosition.addAll(map.getBombs());
-        Position target = null;
-        double min = Double.MAX_VALUE;
-        for(int i = 0; i <  map.blank.size(); i++)
-        {
-            if(checkBlank(map.blank.get(i)))
-                if( countOfWalk(playerPosition,map.blank.get(i)) < min && countOfWalk(playerPosition,map.blank.get(i)) != 0)
-                {
-                    target = map.blank.get(i);
-                    min = countOfWalk(playerPosition, map.blank.get(i));
-                }
-        }
-        if(target != null) {
-            path = sortPath(playerPosition, target);
+        if(checkRedDanger(heroPosition)){
+            System.out.println("Nguy hiem");
+            path = runTo();
+        }else{
+            path = getTarget();
         }
         return path;
+    }
+
+    //9 la vung cua hero
+    //0 la vung di dcj xanh chua kham pha
+    //1 la vung da kham pha
+    //2 la vung den nguy hiem tinh ko di dcj
+    //3 vung chua spoils
+    //4 la vung chua nguy hiem dong
+    //5 thung pha dcj
+    public static String getTarget(){
+        String path = "";
+        pathMatrix = createZeroDiArray();
+        pathMatrix[heroPosition.getRow()][heroPosition.getCol()] = 9;
+        for(int i = 0; i < map.size.rows;i++){
+            for(int j = 0 ; j < map.size.cols;j++){
+                if(spoilsMatrix[i][j] == 1 || humanMatrix[i][j] == 1){
+                    pathMatrix[i][j] = 3;
+                }
+                if(blackMatrix[i][j] == 1 || roadMatrix[i][j] != 0){
+                    pathMatrix[i][j] = 2;
+                }if(roadMatrix[i][j] == 2){
+                    pathMatrix[i][j] = 5;
+                }
+                if(map.getPlayerByKey(PLAYER_ID).pill > 3){
+                    if(virusMatrix[i][j] == 1 || humanMatrix[i][j] == 2){
+                        pathMatrix[i][j] = 4;
+                    }
+                }
+            }
+        }
+        Position p;
+        Position t;
+        Queue<Position> list = new ArrayDeque<Position>();
+        list.add(heroPosition);
+        Position box = null;
+        while(!list.isEmpty()){
+            p = list.poll();
+            for( int i = 1; i <=4 ; i++){
+                t = p.nextPosition(i,1);
+                if(pathMatrix[t.getRow()][t.getCol()] == 0){
+                    pathMatrix[t.getRow()][t.getCol()] = 1;
+                    list.add(t);
+                }else if(pathMatrix[t.getRow()][t.getCol()] == 3 || pathMatrix[t.getRow()][t.getCol()] == 4){
+                    return sortPath(heroPosition,t);
+                }else if(box == null && pathMatrix[t.getRow()][t.getCol()] == 5){
+                    box = t;
+                }
+            }
+        }
+        if(path == ""){
+            path = sortPath(heroPosition,box);
+            path = path.substring(0,path.length()-1) + 'b' + runTo();
+
+        }
+        return path;
+    }
+
+    public static boolean checkRedDanger(Position p){
+        if(redMatrix[p.getRow()][p.getCol()] == 1){
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean checkBlackDanger(Position p){
+        if(blackMatrix[p.getRow()][p.getCol()] == 1){
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean checkRedAndBlackDanger(Position p){
+        return checkRedDanger(p) && checkBlackDanger(p);
+    }
+
+    //tao 1 mang luu chu chuyen dong tim duong dao thoat
+    //9 la vung cua hero
+    //0 la vung di dcj xanh
+    //1 la vung do nguy co
+    //2 la vunf den nguy hiem
+    public static String runTo(){
+        String path = "";
+        pathMatrix = createZeroDiArray();
+        pathMatrix[heroPosition.getRow()][heroPosition.getCol()] = 9;
+        for(int i = 0; i < map.size.rows;i++){
+            for(int j = 0 ; j < map.size.cols;j++){
+                if(redMatrix[i][j] == 1){
+                    pathMatrix[i][j] = 1;
+                }
+                if(blackMatrix[i][j] == 1 || roadMatrix[i][j] != 0){
+                    pathMatrix[i][j] = 2;
+                }
+            }
+        }
+        Position p = heroPosition;
+        Position t;
+        for( int i = 1; i <=4 ; i++){
+            t = p.nextPosition(i,1);
+            if(pathMatrix[t.getRow()][t.getCol()] == 0){
+                path = path + i;
+                return  path;
+            }
+        }
+        return path;
+    }
+
+    public static void updateMatrixInfo(){
+        roadMatrix = map.mapMatrix;
+        spoilsMatrix = createSpoilsMatrix();
+        humanMatrix = createHumanMatrix();
+        virusMatrix = createVirusMatrix();
+        bombMatrix = createBombMatrix();
+        redMatrix = createRedMatrix();
+        blackMatrix = createBlackMatrix();
+        heroPosition = getHeroCurrentPosition();
+        blackList = createBlackList();
+    }
+
+    //nhung noi nguy hiem co bom hoac vi rut chuan bi di qua
+    // 1 la nguy hiem
+    // 0 la an toan
+    public static int[][] createRedMatrix(){
+        int[][] redMatrix = createZeroDiArray();
+        for(int i = 0; i < map.size.rows;i++){
+            for(int j = 0 ; j < map.size.cols;j++){
+                if(bombMatrix[i][j] == 1 || virusMatrix[i][j] == 2 || humanMatrix[i][j] == 3){
+                    redMatrix[i][j] = 1;
+                }
+            }
+        }
+        return redMatrix;
+    }
+
+    //nhung noi co nguoi nhiem virut hoac virut dang o can tranh khi di chuyen
+    //1 la nguy hiem
+    //0 la an toan
+    public static int[][] createBlackMatrix(){
+        int[][] blackMatrix = createZeroDiArray();
+        for(int i = 0; i < map.size.rows;i++){
+            for(int j = 0 ; j < map.size.cols;j++){
+                if(virusMatrix[i][j] == 1 || humanMatrix[i][j] == 2 || roadMatrix[i][j] != 0 ||
+                        (map.getPlayerByKey(COMPETITOR_ID).currentPosition.getRow() == i && map.getPlayerByKey(COMPETITOR_ID).currentPosition.getCol() == j )){
+                    blackMatrix[i][j] = 1;
+                }
+            }
+        }
+        return blackMatrix;
+    }
+
+    public static ArrayList<Position> createBlackList(){
+        ArrayList<Position>  blackList = new ArrayList<Position>();
+        for(int i = 0; i < map.size.rows;i++){
+            for(int j = 0 ; j < map.size.cols;j++){
+                if(blackMatrix[i][j] == 1 || redMatrix[i][j] == 1){
+                    blackList.add(new Position(j , i));
+                }
+            }
+        }
+        return  blackList;
+    }
+
+
+    // show test info
+    //0 la duong di dcj
+    //1 la tuong ko the pha
+    //2 la tuong co the pha
+    //6 la teleport gate
+    //7 la khu cach li
+    public static void showRoad(){
+        int[][] mapMatrix = map.mapMatrix;
+        System.out.println("\nRoad matrix : ");
+        for(int i = 0; i < map.size.rows;i++){
+            for(int j = 0 ; j < map.size.cols;j++){
+                System.out.print(mapMatrix[i][j] + " ");
+            }
+            System.out.println();
+        }
+    }
+
+    public static void  showRoadMatrix(){
+        int[][] mapMatrix = map.mapMatrix;
+        System.out.println("\nRoad matrix : ");
+        showDiMatrix(mapMatrix);
+    }
+
+    public static void showDiMatrix(int[][] matrix){
+        for(int i = 0; i < map.size.rows;i++){
+            for(int j = 0 ; j < map.size.cols;j++){
+                System.out.print(matrix[i][j] + " ");
+            }
+            System.out.println();
+        }
+    }
+
+    public static int[][] createZeroDiArray(){
+        int[][] matrix = new int[map.size.rows][map.size.cols];
+        for(int i = 0; i < map.size.rows;i++){
+            for(int j = 0 ; j < map.size.cols;j++){
+                matrix[i][j] = 0;
+            }
+        }
+        return matrix;
+    }
+
+    public static Position getHeroCurrentPosition(){
+        Position p = map.getPlayerByKey(PLAYER_ID).currentPosition;
+        return p;
+    }
+
+    //0 la nhung loi ko co virus
+    //1 la nhung noi co virus
+    //2 la nhung noi virus chuan bi den
+    public static int[][] createVirusMatrix(){
+        int[][] virusMatrix = createZeroDiArray();
+        for(Viruses virus: map.getVirus()){
+            virusMatrix[virus.position.getRow()][virus.position.getCol()] = 1;
+            if(virus.direction == 1){
+                virusMatrix[virus.position.getRow()][virus.position.getCol() - 1] = 2;
+            } else if (virus.direction == 2) {
+                virusMatrix[virus.position.getRow()][virus.position.getCol() + 1] = 2;
+            }else if (virus.direction == 3) {
+                virusMatrix[virus.position.getRow() - 1][virus.position.getCol()] = 2;
+            }else if (virus.direction == 4) {
+                virusMatrix[virus.position.getRow() + 1][virus.position.getCol()] = 2;
+            }
+        }
+        return virusMatrix;
+    }
+
+    //0 la nhung loi ko co human
+    //1 la nhung noi co human khoe manh
+    //2 la nhung noi co human bi nhiem
+    //3 la nhung noi human nhiem co the se di
+    public static int[][] createHumanMatrix(){
+        int[][] humanMatrix = createZeroDiArray();
+        for(Human human: map.getHuman()){
+            if(human.infected){
+                humanMatrix[human.position.getRow()][human.position.getCol()] = 2;
+            }else {
+                humanMatrix[human.position.getRow()][human.position.getCol()] = 1;
+                if(human.direction == 1){
+                    humanMatrix[human.position.getRow()][human.position.getCol() - 1] = 3;
+                } else if (human.direction == 2) {
+                    humanMatrix[human.position.getRow()][human.position.getCol() + 1] = 3;
+                } else if (human.direction == 3) {
+                    humanMatrix[human.position.getRow() - 1][human.position.getCol()] = 3;
+                } else if (human.direction == 4) {
+                    humanMatrix[human.position.getRow() + 1][human.position.getCol()] = 3;
+                }
+            }
+        }
+        return humanMatrix;
+    }
+
+    public static int[][] createSpoilsMatrix(){
+        int[][] spoilsMatrix = createZeroDiArray();
+        for(Spoil spoil:map.getSpoils()){
+            spoilsMatrix[spoil.getRow()][spoil.getCol()] = 1;
+        }
+        return spoilsMatrix;
+    }
+
+    //nhung noi co bom la 1
+    // ko co bom la 0
+    public static int[][] createBombMatrix() {
+        int[][] bombMatrix = createZeroDiArray();
+        Iterator var3 = map.getBombs().iterator();
+        while(var3.hasNext()) {
+            Bomb bomb = (Bomb) var3.next();
+            if(bomb.remainTime <= 500){
+                bombMatrix[bomb.getRow()][bomb.getCol()] = 1;
+                Player player = map.getPlayerByKey(bomb.playerId);
+                for (int d = 1; d < 5; ++d) {
+                    for (int p = 1; p <= player.power; ++p) {
+                        Position effBomb = bomb.nextPosition(d, p);
+                        bombMatrix[effBomb.getRow()][effBomb.getCol()] = 1;
+                    }
+                }
+            }
+        }
+        return bombMatrix;
     }
 
 }
