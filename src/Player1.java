@@ -15,7 +15,7 @@ public class Player1 {
     final static String SERVER_URL = "https://codefest.jsclub.me/";
     final static String PLAYER1_ID = "player1-xxx";
     final static String PLAYER2_ID = "player2-xxx";
-    final static String GAME_ID = "116ab982-9237-4f41-9e53-90e1f6c9703e";
+    final static String GAME_ID = "e04cef22-dc59-4699-948b-f81def74adc5";
     final static Hero Player1 = new Hero(PLAYER1_ID, GAME_ID);
     private static MapInfo map;
     private static List<Position> restrictPosition;
@@ -44,23 +44,30 @@ public class Player1 {
         if(checkBomb()) {
             path = dodgeBomb();
         }
-//        else
-//        {
-//            target = getTargetSpoils();
-//            if(target != null) {
-//                path = sortPath(map.getCurrentPosition(Player1),target);
-//                min = countOfWalk(path);
-//            }
-//            target = getTargetHumans();
-//            if(target != null )
-//            {
-//                if( (countOfWalk(playerPosition, target) < min )|| min == -1) {
-//                    path = sortPath(map.getCurrentPosition(Player1),target);
-//                }
-//            }
-//
-//        }
-//        if(target != null)System.out.println(target.getCol() + " " + target.getRow());
+        else
+        {
+            target = getTargetBalk();
+            if(target != null) {
+                path = sortPath(playerPosition,target);
+                min = countOfWalk(path);
+                if(path.length() > 1)
+                    path = path.substring(0, path.length()-2) + "b";
+            }
+            target = getTargetSpoils();
+            if(target != null) {
+                if( (countOfWalk(playerPosition, target) < min )|| min == -1) {
+                    path = sortPath(playerPosition,target);
+                }
+            }
+            target = getTargetHumans();
+            if(target != null )
+            {
+                if( (countOfWalk(playerPosition, target) < min )|| min == -1) {
+                    path = sortPath(playerPosition,target);
+                }
+            }
+
+        }
         return path;
     }
 
@@ -82,11 +89,11 @@ public class Player1 {
     // nhung diem can tranh
     public static List<Position> getRestrictPosition() {
         List<Position> restrictPosition = new ArrayList<>();
-        restrictPosition.addAll(map.balk);
+//        restrictPosition.addAll(map.balk);
         restrictPosition.addAll(map.walls);
         restrictPosition.addAll(map.teleportGate);
         restrictPosition.add(map.getPlayerByKey(PLAYER2_ID).currentPosition);
-        restrictPosition.addAll(map.getBombList());
+//        restrictPosition.addAll(map.getBombList());
         List<Position> virus = new ArrayList<>();
         for(Viruses vr:map.getVirus()) {
             virus.add(vr.position);
@@ -166,7 +173,20 @@ public class Player1 {
         return target;
     }
 
-
+    public static Position getTargetBalk() {
+        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
+        Position target = null;
+        if (map.balk.size() > 0) {
+            target = map.balk.get(0);
+            for(int i = 1; i <  map.balk.size(); i++)
+            {
+                if((countOfWalk(playerPosition, map.balk.get(i)) < countOfWalk(playerPosition, target) )
+                        && countOfWalk(playerPosition, map.balk.get(i)) !=  0)
+                    target = map.balk.get(i);
+            }
+        }
+        return target;
+    }
 
     //**************************************** dodge ************************************
 
@@ -175,11 +195,14 @@ public class Player1 {
         Position position = map.getPlayerByKey(PLAYER1_ID).currentPosition;
         for(Position item:bomb) {
             if(position.getRow() == item.getRow() && position.getCol() == item.getCol()) {
+                System.out.println("asd");
                 return true;
             }
         }
         return false;
     }
+
+
 
     public static boolean checkBlank(Position p) {
         for(Position i:map.getBombList()) {
@@ -204,7 +227,6 @@ public class Player1 {
                 target = map.blank.get(i);
                 min = countOfWalk(playerPosition, map.blank.get(i));
             }
-                System.out.println(countOfWalk(playerPosition,map.blank.get(i)));
         }
         path = sortPath(playerPosition, target);
 
