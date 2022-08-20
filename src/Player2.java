@@ -13,7 +13,7 @@ public class Player2 {
     final static String SERVER_URL = "https://codefest.jsclub.me/";
     final static String PLAYER_ID = "player1-xxx";
     final static String COMPETITOR_ID = "player2-xxx";
-    final static String GAME_ID = "b973eaa9-5fd9-4f2e-aa79-4999803063e7";
+    final static String GAME_ID = "44d7a70d-2406-46a8-a1ba-ec6423e97114";
     private static MapInfo map;
     private static int[][] roadMatrix; // ma tran ban do
     private static int[][] virusMatrix; // ma tran virus
@@ -70,7 +70,7 @@ public class Player2 {
         }else{
             path = getTarget();
         }
-        return path;
+        return  path;
     }
 
     //9 la vung cua hero
@@ -91,10 +91,10 @@ public class Player2 {
                 }
                 if(blackMatrix[i][j] == 1 || roadMatrix[i][j] != 0){
                     pathMatrix[i][j] = 2;
-                }if(roadMatrix[i][j] == 2){
+                }if(roadMatrix[i][j] == 2 && bombMatrix[i][j] == 0){
                     pathMatrix[i][j] = 5;
                 }
-                if(map.getPlayerByKey(PLAYER_ID).pill > 3){
+                if(map.getPlayerByKey(PLAYER_ID).pill >= 3){
                     if(virusMatrix[i][j] == 1 || humanMatrix[i][j] == 2){
                         pathMatrix[i][j] = 4;
                     }
@@ -120,10 +120,49 @@ public class Player2 {
                 }
             }
         }
-        if(path == ""){
+        if(path == "" && !isBomDrop()){
             path = sortPath(heroPosition,box);
             path = path.substring(0,path.length()-1) + 'b' + runTo();
 
+        }
+        return path;
+    }
+
+    public static boolean isBomDrop(){
+        for(Bomb bomb:map.getBombs()){
+            if(bomb.playerId.equals(PLAYER_ID)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static String runTo(){
+        String path = "";
+        pathMatrix = createZeroDiArray();
+        pathMatrix[heroPosition.getRow()][heroPosition.getCol()] = 9;
+        for(int i = 0; i < map.size.rows;i++){
+            for(int j = 0 ; j < map.size.cols;j++){
+                if(redMatrix[i][j] == 1){
+                    pathMatrix[i][j] = 1;
+                }
+                if(blackMatrix[i][j] == 1 || roadMatrix[i][j] != 0){
+                    pathMatrix[i][j] = 2;
+                }
+            }
+        }
+        Position p;
+        Position t;
+        Queue<Position> list = new ArrayDeque<Position>();
+        list.add(heroPosition);
+        while(!list.isEmpty()){
+            p = list.poll();
+            for( int i = 1; i <=4 ; i++){
+                t = p.nextPosition(i,1);
+                if(pathMatrix[t.getRow()][t.getCol()] == 0){
+                    return path = sortPath(heroPosition,t);
+                }
+            }
         }
         return path;
     }
@@ -151,31 +190,7 @@ public class Player2 {
     //0 la vung di dcj xanh
     //1 la vung do nguy co
     //2 la vunf den nguy hiem
-    public static String runTo(){
-        String path = "";
-        pathMatrix = createZeroDiArray();
-        pathMatrix[heroPosition.getRow()][heroPosition.getCol()] = 9;
-        for(int i = 0; i < map.size.rows;i++){
-            for(int j = 0 ; j < map.size.cols;j++){
-                if(redMatrix[i][j] == 1){
-                    pathMatrix[i][j] = 1;
-                }
-                if(blackMatrix[i][j] == 1 || roadMatrix[i][j] != 0){
-                    pathMatrix[i][j] = 2;
-                }
-            }
-        }
-        Position p = heroPosition;
-        Position t;
-        for( int i = 1; i <=4 ; i++){
-            t = p.nextPosition(i,1);
-            if(pathMatrix[t.getRow()][t.getCol()] == 0){
-                path = path + i;
-                return  path;
-            }
-        }
-        return path;
-    }
+
 
     public static void updateMatrixInfo(){
         roadMatrix = map.mapMatrix;

@@ -16,7 +16,7 @@ public class Player1 {
     final static String SERVER_URL = "https://codefest.jsclub.me/";
     final static String PLAYER1_ID = "player1-xxx";
     final static String PLAYER2_ID = "player2-xxx";
-    final static String GAME_ID = "b973eaa9-5fd9-4f2e-aa79-4999803063e7";
+    final static String GAME_ID = "914ddd01-7f81-424f-b134-8ba4f10a8741";
     final static Hero Player1 = new Hero(PLAYER1_ID, GAME_ID);
     private static MapInfo map;
     private static List<Position> restrictPosition;
@@ -46,22 +46,18 @@ public class Player1 {
         if(checkViruss()) {
             return dodgeViruss();
         }
-        if(checkBomb()) {
+        if(checkBomb() || !map.getBombs().isEmpty()) {
             return dodgeBomb();
         }
         else
         {
-//            target = getTargetBalk();
-//            if(target != null) {
-//                path = sortPath(playerPosition,target);
-//                min = countOfWalk(path);
-//                if(path.length() > 1) {
-//                    path = path.substring(0, path.length()-2) + "b";
-//                }
-//                else {
-//                    path = "b";
-//                }
-//            }
+            target = getTargetBalk();
+            if(target != null && map.getBombs().isEmpty()) {
+                path = sortPath(playerPosition,target);
+                min = countOfWalk(path);
+                path = path.substring(0, path.length()-1) + "b" + dodgeBomb();
+                System.out.println(path);
+            }
             target = getTargetSpoils();
             if(target != null) {
                 if( (countOfWalk(playerPosition, target) < min )|| min == -1) { // xoa
@@ -108,6 +104,17 @@ public class Player1 {
         return restrictPosition;
     }
 
+    public static List<Position> getRestrictPosition4Blank() {
+        List<Position> restrictPosition = new ArrayList<>();
+        restrictPosition.addAll(map.balk);
+        restrictPosition.addAll(map.walls);
+        restrictPosition.addAll(map.teleportGate);
+        restrictPosition.add(map.getPlayerByKey(PLAYER2_ID).currentPosition);
+        restrictPosition.addAll(map.getBombList());
+        restrictPosition.addAll(getVirussList());
+        return restrictPosition;
+    }
+
     public static List<Position> getBomb() {
         List<Position> bomb = new ArrayList<>();
 //        List<Position> Bombs = new ArrayList<>();
@@ -139,7 +146,6 @@ public class Player1 {
                 }
             }
         }
-        if(target == null) System.out.println("null roi");
         return target;
     }
 
@@ -189,13 +195,15 @@ public class Player1 {
     public static Position getTargetBalk() {
         Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
         Position target = null;
+        double min = 1000;
         if (map.balk.size() > 0) {
-            target = map.balk.get(0);
-            for(int i = 1; i <  map.balk.size(); i++)
+            for(Position item:map.balk )
             {
-                if((countOfWalk(playerPosition, map.balk.get(i)) < countOfWalk(playerPosition, target) )
-                        && countOfWalk(playerPosition, map.balk.get(i)) !=  0)
-                    target = map.balk.get(i);
+                if((AStarSearch.aStarSearch(map.mapMatrix, getRestrictPosition4Blank(), playerPosition, item).length() < min )
+                        && countOfWalk(playerPosition, item) !=  0) {
+                    target = item;
+                    min = AStarSearch.aStarSearch(map.mapMatrix, getRestrictPosition4Blank(), playerPosition, item).length();
+                }
             }
         }
         return target;
