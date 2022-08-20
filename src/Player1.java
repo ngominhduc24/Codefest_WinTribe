@@ -37,7 +37,7 @@ public class Player1 {
 
     public static String getPath() {
         String path = "";
-        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition; // lay vi tri hien tai 
+        Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition; // lay vi tri hien tai
 
         Position target = null;
         double min = -1;
@@ -85,7 +85,7 @@ public class Player1 {
     }
 
     //******************************************* take map info *******************************
-    
+
     // nhung diem can tranh
     public static List<Position> getRestrictPosition() {
         List<Position> restrictPosition = new ArrayList<>();
@@ -118,7 +118,7 @@ public class Player1 {
     }
 
     //*********************************** get target *******************************************
-    
+
     public  static Position getTargetSpoils() {
         Position playerPosition = map.getPlayerByKey(PLAYER1_ID).currentPosition;
         Position target = null;
@@ -127,7 +127,7 @@ public class Player1 {
             for(int i = 1; i <  map.spoils.size(); i++)
             {
                 if((countOfWalk(playerPosition, map.spoils.get(i)) < countOfWalk(playerPosition, target) )
-                    && countOfWalk(playerPosition, map.spoils.get(i)) !=  0)
+                        && countOfWalk(playerPosition, map.spoils.get(i)) !=  0)
                     target = map.spoils.get(i);
             }
         }
@@ -140,13 +140,13 @@ public class Player1 {
         // get default target (it is the first human are not infected)
         for (int i = 0; i < map.getHuman().size(); i++) {
             if(!map.getHuman().get(i).infected
-                && countOfWalk(playerPosition, map.getHuman().get(i).position) != 0) {
+                    && countOfWalk(playerPosition, map.getHuman().get(i).position) != 0) {
                 target = map.getHuman().get(i).position;
                 break;
             }
             if(map.getHuman().get(i).infected
-                && map.getPlayerByKey(PLAYER1_ID).pill > 1
-                && countOfWalk(playerPosition, map.getHuman().get(i).position) != 0) {
+                    && map.getPlayerByKey(PLAYER1_ID).pill > 1
+                    && countOfWalk(playerPosition, map.getHuman().get(i).position) != 0) {
                 target = map.getHuman().get(i).position;
                 break;
             }
@@ -158,15 +158,15 @@ public class Player1 {
 
             for (int i = 0; i < map.getHuman().size(); i++) {
                 if (map.getHuman().get(i).infected
-                    && countOfWalk(playerPosition, map.getHuman().get(i).position) < countOfWalk(playerPosition, target)
-                    && countOfWalk(playerPosition, map.getHuman().get(i).position) !=  0 )
+                        && countOfWalk(playerPosition, map.getHuman().get(i).position) < countOfWalk(playerPosition, target)
+                        && countOfWalk(playerPosition, map.getHuman().get(i).position) !=  0 )
                     target = map.getHuman().get(i).position;
             }
         } else  {
             for (int i = 0; i < map.getHuman().size(); i++) {
                 if (!map.getHuman().get(i).infected
-                    && countOfWalk(playerPosition, map.getHuman().get(i).position) < countOfWalk(playerPosition, target)
-                    && countOfWalk(playerPosition, map.getHuman().get(i).position) !=  0 )
+                        && countOfWalk(playerPosition, map.getHuman().get(i).position) < countOfWalk(playerPosition, target)
+                        && countOfWalk(playerPosition, map.getHuman().get(i).position) !=  0 )
                     target = map.getHuman().get(i).position;
             }
         }
@@ -222,18 +222,18 @@ public class Player1 {
         for(int i = 0; i <  map.blank.size(); i++)
         {
             if(checkBlank(map.blank.get(i)))
-            if( countOfWalk(playerPosition,map.blank.get(i)) < min && countOfWalk(playerPosition,map.blank.get(i)) != 0)
-            {
-                target = map.blank.get(i);
-                min = countOfWalk(playerPosition, map.blank.get(i));
-            }
+                if( countOfWalk(playerPosition,map.blank.get(i)) < min && countOfWalk(playerPosition,map.blank.get(i)) != 0)
+                {
+                    target = map.blank.get(i);
+                    min = countOfWalk(playerPosition, map.blank.get(i));
+                }
         }
         path = sortPath(playerPosition, target);
 
         return path;
     }
 
-    
 
-    
+
+
 }
