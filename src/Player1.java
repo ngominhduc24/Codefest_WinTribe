@@ -60,7 +60,7 @@ public class Player1 {
             }
             target = getTargetSpoils();
             if(target != null) {
-                if( (countOfWalk(playerPosition, target) < min )|| min == -1) { // xoa
+                if( (countOfWalk(playerPosition, target) < min+3 )|| min == -1) { // xoa
                     path = sortPath(playerPosition,target);
                     min = countOfWalk(playerPosition, target);
                 }
